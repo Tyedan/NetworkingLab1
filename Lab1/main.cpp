@@ -1,43 +1,70 @@
+/*We certify that this work is entirely our own.The assessor of this project may reproduce this project
+and provide copies to other academic staff, and/or communicate a copy of
+his project to a plagiarism - checking service, which may retain a copy of the project on its database.”
+Jon Trusheim*/
 #include <stdio.h>
 #include <string.h>
 #include "RakNet/RakPeerInterface.h"
 #include "RakNet/MessageIdentifiers.h"
 #include <iostream>
+#include "RakNet/BitStream.h"
+#include "RakNet/RakNetTypes.h"  
 
 using namespace RakNet;
 
+enum GameMessages
+{
+	ID_GAME_MESSAGE_1 = ID_USER_PACKET_ENUM + 1,
+
+};
+
+//made my own struct to replace the bit streams
+#pragma pack(push, 1)
+struct myMessage
+{
+	unsigned char typeId;
+	char* message;
+};
+#pragma pack(pop)
 int main(void)
 {
+	//added variables 
+	void* mainWindow = GetForegroundWindow();
 	char str[512];
-	RakNet::RakPeerInterface *peer = RakNet::RakPeerInterface::GetInstance();
-	bool isServer;
-	RakNet::Packet *packet;
 	char junk[512];
 	unsigned int maxClients;
 	unsigned int serverPort;
+	RakNet::RakPeerInterface *peer = RakNet::RakPeerInterface::GetInstance();
+	bool isServer;
+	RakNet::Packet *packet;
 
 	printf("(C) or (S)erver?\n");
 	fgets(str, 512, stdin);
+
 	if ((str[0] == 'c') || (str[0] == 'C'))
 	{
+		//made it so the server port took user input
 		printf("Server port number?\n");
 		std::cin >> serverPort;
 		fgets(junk, 512, stdin);
-		SocketDescriptor sd;
+		RakNet::SocketDescriptor sd;
 		peer->Startup(1, &sd, 1);
 		isServer = false;
 	}
 	else {
-		printf("Server Port?\n");
+		//made it so the server port took user input
+		printf("Server port number?\n");
 		std::cin >> serverPort;
 		fgets(junk, 512, stdin);
+		//made it so the number of maximum clients took user input
 		printf("What is the maximum number of Clients?\n");
 		std::cin >> maxClients;
 		fgets(junk, 512, stdin);
-		SocketDescriptor sd(serverPort, 0);
+		RakNet::SocketDescriptor sd(serverPort, 0);
 		peer->Startup(maxClients, &sd, 1);
 		isServer = true;
 	}
+
 
 	if (isServer)
 	{
@@ -53,7 +80,6 @@ int main(void)
 		}
 		printf("Starting the client.\n");
 		peer->Connect(str, serverPort, 0, 0);
-
 	}
 
 	while (1)
@@ -72,8 +98,14 @@ int main(void)
 				printf("Another client has connected.\n");
 				break;
 			case ID_CONNECTION_REQUEST_ACCEPTED:
+			{
 				printf("Our connection request has been accepted.\n");
-				break;
+			//changed from bit streams to structs
+				myMessage structOut;
+				structOut.message = "Welcome user to Skynet";
+				structOut.typeId = (unsigned char)ID_GAME_MESSAGE_1;
+				peer->Send((char*)(&structOut), sizeof(structOut), HIGH_PRIORITY, RELIABLE_ORDERED, 0, packet->systemAddress, false);
+			}
 			case ID_NEW_INCOMING_CONNECTION:
 				printf("A connection is incoming.\n");
 				break;
@@ -82,28 +114,42 @@ int main(void)
 				break;
 			case ID_DISCONNECTION_NOTIFICATION:
 				if (isServer) {
-					printf("A client has disconnected.\n");
+					printf("May the Force be with you.\n");
 				}
 				else {
-					printf("We have been disconnected.\n");
+					printf("May the Force be with you.\n");
 				}
+				break;
 				break;
 			case ID_CONNECTION_LOST:
 				if (isServer) {
-					printf("A client lost the connection.\n");
+					printf("May the Force be with you.\n not good");
 				}
 				else {
-					printf("Connection lost.\n");
+					printf("May the Force be with you.\n not good");
 				}
 				break;
+			case ID_GAME_MESSAGE_1:
+			{
+				//changed the message resieved to take my struct instead of bit streams
+				myMessage *message = (myMessage*)(packet->data);
+				printf("%s\n", message->message);
+			}
+			break;
 			default:
 				printf("Message with identifier %i has arrived.\n", packet->data[0]);
 				break;
 			}
 		}
+
+		//added an if statement to leave the loop
+		if (GetAsyncKeyState(VK_ESCAPE) && mainWindow == GetForegroundWindow())
+		{
+			// exit game loop
+			break;
+		}
 	}
 
-	// TODO - Add code body here
 
 	RakNet::RakPeerInterface::DestroyInstance(peer);
 
